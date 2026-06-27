@@ -27,7 +27,7 @@ public final class AiCompanionClient implements ClientModInitializer {
         openMapKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.ai_companion.open_map",
                 InputUtil.Type.KEYSYM,
-                GLFW.GLFW_KEY_L,
+                GLFW.GLFW_KEY_M,
                 "category.ai_companion"
         ));
 
