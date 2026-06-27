@@ -1,0 +1,12 @@
+{
+  "category.ai_companion": "AI Companion",
+  "key.ai_companion.open_map": "Open Loaded Map",
+  "screen.ai_companion.map": "Loaded Map",
+  "screen.ai_companion.provider": "Join Local or Cloud AI",
+  "button.ai_companion.join_ai": "Join Local or Cloud AI",
+  "button.ai_companion.cloud": "Cloud",
+  "button.ai_companion.local": "Local",
+  "button.ai_companion.add_api": "Add API",
+  "button.ai_companion.chat": "Chat",
+  "button.ai_companion.join_game": "Join Game"
+}

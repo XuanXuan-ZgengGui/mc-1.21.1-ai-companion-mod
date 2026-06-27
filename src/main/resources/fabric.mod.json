@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "ai_companion",
+  "version": "${version}",
+  "name": "AI Companion",
+  "description": "Adds loaded-map viewing and local/cloud AI companion screens for Minecraft 1.21.1.",
+  "authors": [
+    "XuanXuan-ZgengGui"
+  ],
+  "contact": {
+    "homepage": "https://github.com/XuanXuan-ZgengGui/mc-1.21.1-ai-companion-mod",
+    "sources": "https://github.com/XuanXuan-ZgengGui/mc-1.21.1-ai-companion-mod"
+  },
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "com.xuanxuan.aicompanion.client.AiCompanionClient"
+    ]
+  },
+  "mixins": [
+    "ai_companion.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.9",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
