@@ -1,3 +1,4 @@
+<meta name="msvalidate.01" content="11172A156E62708C2E349AF3DD94B113" />
 # mc-1.21.1-ai-companion-mod
 
 Minecraft 1.21.1 Fabric 客户端 Mod，用于在游戏中查看已加载地图，并配置本地或云端 AI 同伴。
