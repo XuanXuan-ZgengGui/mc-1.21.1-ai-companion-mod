@@ -2,6 +2,7 @@ package com.xuanxuan.aicompanion.client;
 
 import com.xuanxuan.aicompanion.client.ai.AiRouter;
 import com.xuanxuan.aicompanion.client.config.AiCompanionConfig;
+import com.xuanxuan.aicompanion.client.entity.CompanionEntityManager;
 import com.xuanxuan.aicompanion.client.gui.LoadedMapScreen;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -35,6 +36,7 @@ public final class AiCompanionClient implements ClientModInitializer {
             while (openMapKey.wasPressed()) {
                 client.setScreen(new LoadedMapScreen());
             }
+            CompanionEntityManager.tick(client);
         });
 
         ClientSendMessageEvents.ALLOW_CHAT.register(message -> {

@@ -2,6 +2,7 @@ package com.xuanxuan.aicompanion.client.gui;
 
 import com.xuanxuan.aicompanion.client.AiCompanionClient;
 import com.xuanxuan.aicompanion.client.config.AiCompanionConfig;
+import com.xuanxuan.aicompanion.client.entity.CompanionEntityManager;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
@@ -44,7 +45,8 @@ public final class LocalModelScreen extends Screen {
         AiCompanionConfig.setJoinedGame(joinGame);
         AiCompanionConfig.save();
         if (joinGame) {
-            AiCompanionClient.addChatMessage(Text.literal("[" + AiCompanionConfig.modelName() + "] 已加入游戏。输入 @*" + AiCompanionConfig.modelName() + " 开始聊天。"));
+            CompanionEntityManager.respawn(client);
+            AiCompanionClient.addChatMessage(Text.literal("[XuanXuan-ZhengGui] 已加入游戏。输入 @*" + AiCompanionConfig.modelName() + " 开始聊天。"));
         }
         client.setScreen(null);
     }

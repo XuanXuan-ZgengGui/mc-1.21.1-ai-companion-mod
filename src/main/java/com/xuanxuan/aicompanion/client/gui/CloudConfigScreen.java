@@ -1,6 +1,7 @@
 package com.xuanxuan.aicompanion.client.gui;
 
 import com.xuanxuan.aicompanion.client.config.AiCompanionConfig;
+import com.xuanxuan.aicompanion.client.entity.CompanionEntityManager;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
@@ -47,6 +48,9 @@ public final class CloudConfigScreen extends Screen {
         AiCompanionConfig.setChatMode(!joinGame);
         AiCompanionConfig.setJoinedGame(joinGame);
         AiCompanionConfig.save();
+        if (joinGame) {
+            CompanionEntityManager.respawn(client);
+        }
         client.setScreen(null);
     }
 
