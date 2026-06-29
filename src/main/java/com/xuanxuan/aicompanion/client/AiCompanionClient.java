@@ -22,6 +22,7 @@ public final class AiCompanionClient implements ClientModInitializer {
 
     private static KeyBinding openMapKey;
     private static boolean lanOpened = false;
+    private static int lanDelayTicks = 0;
 
     @Override
     public void onInitializeClient() {
@@ -58,12 +59,21 @@ public final class AiCompanionClient implements ClientModInitializer {
     private static void tryOpenLan(MinecraftClient client) {
         if (lanOpened) return;
         if (client.getServer() == null) return;
+        if (client.player == null) return;
+        if (client.world == null) return;
         if (!AiCompanionConfig.joinedGame()) return;
 
-        boolean success = client.getServer().openToLan(GameMode.SURVIVAL, true, 0);
-        if (success) {
-            lanOpened = true;
-            addChatMessage(Text.literal("[系统] 局域网世界已开启，其他玩家可以搜索并加入！"));
+        lanDelayTicks++;
+        if (lanDelayTicks < 40) return;
+
+        try {
+            boolean success = client.getServer().openToLan(GameMode.SURVIVAL, true, 0);
+            if (success) {
+                lanOpened = true;
+                addChatMessage(Text.literal("[系统] 局域网世界已开启，其他玩家可以搜索并加入！"));
+            }
+        } catch (Exception exception) {
+            addChatMessage(Text.literal("[系统] 开启局域网失败：" + exception.getMessage()));
         }
     }
 

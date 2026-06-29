@@ -17,10 +17,12 @@ import java.util.concurrent.CompletableFuture;
 
 public final class CompanionEntityManager {
     public static final String COMPANION_NAME = "XuanXuan-ZhengGui";
+    private static final int COMPANION_ENTITY_ID = -99999;
 
     private static OtherClientPlayerEntity companion;
     private static UUID skinUuid = UUID.randomUUID();
     private static int tickCounter;
+    private static int spawnDelayTicks;
     private static final Random RANDOM = new Random();
     private static boolean isThinking = false;
 
@@ -28,43 +30,51 @@ public final class CompanionEntityManager {
     }
 
     public static void tick(MinecraftClient client) {
-        if (client.world == null || client.player == null || !AiCompanionConfig.joinedGame()) {
-            remove(client);
-            return;
-        }
+        try {
+            if (client.world == null || client.player == null || !AiCompanionConfig.joinedGame()) {
+                remove(client);
+                spawnDelayTicks = 0;
+                return;
+            }
 
-        if (companion == null || companion.isRemoved() || companion.getWorld() != client.world) {
-            spawn(client);
-        }
+            if (companion == null || companion.isRemoved() || companion.getWorld() != client.world) {
+                spawnDelayTicks++;
+                if (spawnDelayTicks > 20) {
+                    spawn(client);
+                    spawnDelayTicks = 0;
+                }
+                return;
+            }
 
-        tickCounter++;
+            tickCounter++;
+            updateSurvival(client);
 
-        updateSurvival(client);
-
-        if (tickCounter % 5 == 0) {
-            updateMovement(client);
-        }
-
-        if (tickCounter % 20 == 0) {
-            updateBehavior(client);
+            if (tickCounter % 5 == 0) {
+                updateMovement(client);
+            }
+            if (tickCounter % 20 == 0) {
+                updateBehavior(client);
+            }
+        } catch (Exception exception) {
+            AiCompanionClient.addChatMessage(Text.literal("[AI Companion] 实体更新出错：" + exception.getMessage()));
         }
     }
 
     public static void respawn(MinecraftClient client) {
         skinUuid = UUID.randomUUID();
         remove(client);
-        if (client.world != null && client.player != null && AiCompanionConfig.joinedGame()) {
-            spawn(client);
-        }
+        spawnDelayTicks = 0;
     }
 
     public static void remove(MinecraftClient client) {
         if (companion == null) {
             return;
         }
-
-        if (client.world != null && !companion.isRemoved()) {
-            client.world.removeEntity(companion.getId(), Entity.RemovalReason.DISCARDED);
+        try {
+            if (client.world != null && !companion.isRemoved()) {
+                client.world.removeEntity(companion.getId(), Entity.RemovalReason.DISCARDED);
+            }
+        } catch (Exception ignored) {
         }
         companion = null;
     }
@@ -97,103 +107,119 @@ public final class CompanionEntityManager {
 
         CompletableFuture.delayedExecutor(delay, java.util.concurrent.TimeUnit.MILLISECONDS)
                 .execute(() -> {
-                    String response = AiRouter.reply(message);
-                    MinecraftClient client = MinecraftClient.getInstance();
-                    client.execute(() -> {
-                        AiCompanionClient.addChatMessage(
-                                Text.literal("[" + COMPANION_NAME + "] " + response)
-                        );
+                    try {
+                        String response = AiRouter.reply(message);
+                        MinecraftClient client = MinecraftClient.getInstance();
+                        client.execute(() -> {
+                            AiCompanionClient.addChatMessage(
+                                    Text.literal("[" + COMPANION_NAME + "] " + response)
+                            );
+                            isThinking = false;
+                        });
+                    } catch (Exception exception) {
                         isThinking = false;
-                    });
+                    }
                 });
     }
 
     private static void spawn(MinecraftClient client) {
-        GameProfile profile = new GameProfile(skinUuid, COMPANION_NAME);
-        companion = new OtherClientPlayerEntity(client.world, profile);
-        companion.setCustomName(Text.literal(COMPANION_NAME));
-        companion.setCustomNameVisible(true);
+        try {
+            if (client.world == null || client.player == null) return;
 
-        Vec3d spawnPos = companionPosition(client, 2.0D);
-        companion.refreshPositionAndAngles(spawnPos.x, spawnPos.y, spawnPos.z, client.player.getYaw(), 0.0F);
-        client.world.addEntity(companion);
-        companion.setHealth(20.0f);
+            GameProfile profile = new GameProfile(skinUuid, COMPANION_NAME);
+            companion = new OtherClientPlayerEntity(client.world, profile);
+            companion.setCustomName(Text.literal(COMPANION_NAME));
+            companion.setCustomNameVisible(true);
+            companion.setId(COMPANION_ENTITY_ID);
+
+            Vec3d spawnPos = companionPosition(client, 2.0D);
+            companion.refreshPositionAndAngles(spawnPos.x, spawnPos.y, spawnPos.z, client.player.getYaw(), 0.0F);
+            client.world.addEntity(COMPANION_ENTITY_ID, companion);
+            companion.setHealth(20.0f);
+        } catch (Exception exception) {
+            AiCompanionClient.addChatMessage(Text.literal("[AI Companion] 生成实体失败：" + exception.getMessage()));
+            companion = null;
+        }
     }
 
     private static void updateSurvival(MinecraftClient client) {
         if (companion == null || client.player == null) return;
-
-        if (companion.getHealth() < 20.0f) {
-            companion.setHealth(20.0f);
+        try {
+            if (companion.getHealth() < 20.0f) {
+                companion.setHealth(20.0f);
+            }
+            companion.fallDistance = 0.0f;
+            companion.setAir(companion.getMaxAir());
+        } catch (Exception ignored) {
         }
-
-        companion.fallDistance = 0.0f;
-        companion.setAir(companion.getMaxAir());
     }
 
     private static void updateMovement(MinecraftClient client) {
         if (companion == null || client.player == null) {
             return;
         }
+        try {
+            double squaredDistance = companion.squaredDistanceTo(client.player);
 
-        double squaredDistance = companion.squaredDistanceTo(client.player);
+            if (squaredDistance > 400.0D) {
+                Vec3d position = companionPosition(client, 2.0D);
+                companion.refreshPositionAndAngles(position.x, position.y, position.z, client.player.getYaw(), 0.0F);
+                companion.setVelocity(0, 0, 0);
+                return;
+            }
 
-        if (squaredDistance > 400.0D) {
-            Vec3d position = companionPosition(client, 2.0D);
-            companion.refreshPositionAndAngles(position.x, position.y, position.z, client.player.getYaw(), 0.0F);
-            companion.setVelocity(0, 0, 0);
-            return;
-        }
+            if (squaredDistance > 9.0D) {
+                Vec3d target = companionPosition(client, 2.5D);
+                Vec3d diff = target.subtract(companion.getPos());
+                Vec3d movement = diff.multiply(0.12D);
 
-        if (squaredDistance > 9.0D) {
-            Vec3d target = companionPosition(client, 2.5D);
-            Vec3d diff = target.subtract(companion.getPos());
-            Vec3d movement = diff.multiply(0.12D);
+                if (companion.isOnGround() && shouldJump(client, diff)) {
+                    movement = new Vec3d(movement.x, 0.42D, movement.z);
+                } else {
+                    movement = new Vec3d(movement.x, companion.getVelocity().y, movement.z);
+                }
 
-            if (companion.isOnGround() && shouldJump(client, diff)) {
-                movement = new Vec3d(movement.x, 0.42D, movement.z);
+                companion.setVelocity(movement);
+
+                float yaw = (float) Math.toDegrees(Math.atan2(-diff.x, diff.z));
+                companion.setYaw(yaw);
+                companion.setHeadYaw(yaw);
             } else {
-                movement = new Vec3d(movement.x, companion.getVelocity().y, movement.z);
+                Vec3d vel = companion.getVelocity();
+                companion.setVelocity(vel.x * 0.5, vel.y, vel.z * 0.5);
+
+                if (RANDOM.nextInt(15) == 0) {
+                    facePlayer(client);
+                }
             }
-
-            companion.setVelocity(movement);
-
-            float yaw = (float) Math.toDegrees(Math.atan2(-diff.x, diff.z));
-            companion.setYaw(yaw);
-            companion.setHeadYaw(yaw);
-        } else {
-            Vec3d vel = companion.getVelocity();
-            companion.setVelocity(vel.x * 0.5, vel.y, vel.z * 0.5);
-
-            if (RANDOM.nextInt(15) == 0) {
-                facePlayer(client);
-            }
+        } catch (Exception ignored) {
         }
     }
 
     private static boolean shouldJump(MinecraftClient client, Vec3d diff) {
-        if (Math.abs(diff.y) > 0.5 && diff.y > 0) {
-            return true;
-        }
-        return false;
+        return diff.y > 0.5;
     }
 
     private static void updateBehavior(MinecraftClient client) {
         if (companion == null || client.player == null) return;
-
-        if (RANDOM.nextInt(8) == 0) {
-            facePlayer(client);
+        try {
+            if (RANDOM.nextInt(8) == 0) {
+                facePlayer(client);
+            }
+        } catch (Exception ignored) {
         }
     }
 
     private static void facePlayer(MinecraftClient client) {
         if (companion == null || client.player == null) return;
-
-        double dx = client.player.getX() - companion.getX();
-        double dz = client.player.getZ() - companion.getZ();
-        float yaw = (float) Math.toDegrees(Math.atan2(-dx, dz));
-        companion.setYaw(yaw);
-        companion.setHeadYaw(yaw);
+        try {
+            double dx = client.player.getX() - companion.getX();
+            double dz = client.player.getZ() - companion.getZ();
+            float yaw = (float) Math.toDegrees(Math.atan2(-dx, dz));
+            companion.setYaw(yaw);
+            companion.setHeadYaw(yaw);
+        } catch (Exception ignored) {
+        }
     }
 
     private static Vec3d companionPosition(MinecraftClient client, double distance) {
