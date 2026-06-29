@@ -1,6 +1,8 @@
 package com.xuanxuan.aicompanion.client.entity;
 
 import com.mojang.authlib.GameProfile;
+import com.xuanxuan.aicompanion.client.AiCompanionClient;
+import com.xuanxuan.aicompanion.client.ai.AiRouter;
 import com.xuanxuan.aicompanion.client.config.AiCompanionConfig;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.OtherClientPlayerEntity;
@@ -9,7 +11,9 @@ import net.minecraft.text.Text;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
+import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public final class CompanionEntityManager {
     public static final String COMPANION_NAME = "XuanXuan-ZhengGui";
@@ -17,6 +21,8 @@ public final class CompanionEntityManager {
     private static OtherClientPlayerEntity companion;
     private static UUID skinUuid = UUID.randomUUID();
     private static int tickCounter;
+    private static final Random RANDOM = new Random();
+    private static boolean isThinking = false;
 
     private CompanionEntityManager() {
     }
@@ -32,8 +38,15 @@ public final class CompanionEntityManager {
         }
 
         tickCounter++;
-        if (tickCounter % 10 == 0) {
-            keepNearPlayer(client);
+
+        updateSurvival(client);
+
+        if (tickCounter % 5 == 0) {
+            updateMovement(client);
+        }
+
+        if (tickCounter % 20 == 0) {
+            updateBehavior(client);
         }
     }
 
@@ -56,6 +69,45 @@ public final class CompanionEntityManager {
         companion = null;
     }
 
+    public static boolean isCompanionActive() {
+        return companion != null && !companion.isRemoved();
+    }
+
+    public static void onPlayerChat(String message) {
+        if (!isCompanionActive() || isThinking) {
+            return;
+        }
+
+        String lowerMsg = message.toLowerCase();
+        String modelName = AiCompanionConfig.modelName().toLowerCase();
+        String companionName = COMPANION_NAME.toLowerCase();
+
+        boolean shouldReply = lowerMsg.contains("@" + modelName)
+                || lowerMsg.contains("@*" + modelName)
+                || lowerMsg.contains(companionName)
+                || lowerMsg.contains("玄玄")
+                || lowerMsg.contains("ai");
+
+        if (!shouldReply) {
+            return;
+        }
+
+        long delay = 800 + RANDOM.nextInt(1500);
+        isThinking = true;
+
+        CompletableFuture.delayedExecutor(delay, java.util.concurrent.TimeUnit.MILLISECONDS)
+                .execute(() -> {
+                    String response = AiRouter.reply(message);
+                    MinecraftClient client = MinecraftClient.getInstance();
+                    client.execute(() -> {
+                        AiCompanionClient.addChatMessage(
+                                Text.literal("[" + COMPANION_NAME + "] " + response)
+                        );
+                        isThinking = false;
+                    });
+                });
+    }
+
     private static void spawn(MinecraftClient client) {
         GameProfile profile = new GameProfile(skinUuid, COMPANION_NAME);
         companion = new OtherClientPlayerEntity(client.world, profile);
@@ -65,24 +117,83 @@ public final class CompanionEntityManager {
         Vec3d spawnPos = companionPosition(client, 2.0D);
         companion.refreshPositionAndAngles(spawnPos.x, spawnPos.y, spawnPos.z, client.player.getYaw(), 0.0F);
         client.world.addEntity(companion);
+        companion.setHealth(20.0f);
     }
 
-    private static void keepNearPlayer(MinecraftClient client) {
+    private static void updateSurvival(MinecraftClient client) {
+        if (companion == null || client.player == null) return;
+
+        if (companion.getHealth() < 20.0f) {
+            companion.setHealth(20.0f);
+        }
+
+        companion.fallDistance = 0.0f;
+        companion.setAir(companion.getMaxAir());
+    }
+
+    private static void updateMovement(MinecraftClient client) {
         if (companion == null || client.player == null) {
             return;
         }
 
         double squaredDistance = companion.squaredDistanceTo(client.player);
-        if (squaredDistance > 144.0D) {
+
+        if (squaredDistance > 400.0D) {
             Vec3d position = companionPosition(client, 2.0D);
             companion.refreshPositionAndAngles(position.x, position.y, position.z, client.player.getYaw(), 0.0F);
-        } else if (squaredDistance > 16.0D) {
-            Vec3d target = companionPosition(client, 2.5D);
-            Vec3d movement = target.subtract(companion.getPos()).multiply(0.18D);
-            companion.setVelocity(movement.x, movement.y, movement.z);
-        } else {
-            companion.setVelocity(0.0D, companion.getVelocity().y, 0.0D);
+            companion.setVelocity(0, 0, 0);
+            return;
         }
+
+        if (squaredDistance > 9.0D) {
+            Vec3d target = companionPosition(client, 2.5D);
+            Vec3d diff = target.subtract(companion.getPos());
+            Vec3d movement = diff.multiply(0.12D);
+
+            if (companion.isOnGround() && shouldJump(client, diff)) {
+                movement = new Vec3d(movement.x, 0.42D, movement.z);
+            } else {
+                movement = new Vec3d(movement.x, companion.getVelocity().y, movement.z);
+            }
+
+            companion.setVelocity(movement);
+
+            float yaw = (float) Math.toDegrees(Math.atan2(-diff.x, diff.z));
+            companion.setYaw(yaw);
+            companion.setHeadYaw(yaw);
+        } else {
+            Vec3d vel = companion.getVelocity();
+            companion.setVelocity(vel.x * 0.5, vel.y, vel.z * 0.5);
+
+            if (RANDOM.nextInt(15) == 0) {
+                facePlayer(client);
+            }
+        }
+    }
+
+    private static boolean shouldJump(MinecraftClient client, Vec3d diff) {
+        if (Math.abs(diff.y) > 0.5 && diff.y > 0) {
+            return true;
+        }
+        return false;
+    }
+
+    private static void updateBehavior(MinecraftClient client) {
+        if (companion == null || client.player == null) return;
+
+        if (RANDOM.nextInt(8) == 0) {
+            facePlayer(client);
+        }
+    }
+
+    private static void facePlayer(MinecraftClient client) {
+        if (companion == null || client.player == null) return;
+
+        double dx = client.player.getX() - companion.getX();
+        double dz = client.player.getZ() - companion.getZ();
+        float yaw = (float) Math.toDegrees(Math.atan2(-dx, dz));
+        companion.setYaw(yaw);
+        companion.setHeadYaw(yaw);
     }
 
     private static Vec3d companionPosition(MinecraftClient client, double distance) {

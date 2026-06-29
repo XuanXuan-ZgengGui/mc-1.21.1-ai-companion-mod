@@ -12,6 +12,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.text.Text;
+import net.minecraft.world.GameMode;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.concurrent.CompletableFuture;
@@ -20,6 +21,7 @@ public final class AiCompanionClient implements ClientModInitializer {
     public static final String MOD_ID = "ai_companion";
 
     private static KeyBinding openMapKey;
+    private static boolean lanOpened = false;
 
     @Override
     public void onInitializeClient() {
@@ -37,16 +39,32 @@ public final class AiCompanionClient implements ClientModInitializer {
                 client.setScreen(new LoadedMapScreen());
             }
             CompanionEntityManager.tick(client);
+            tryOpenLan(client);
         });
 
         ClientSendMessageEvents.ALLOW_CHAT.register(message -> {
             if (!shouldHandleAiMention(message)) {
+                if (AiCompanionConfig.joinedGame()) {
+                    CompanionEntityManager.onPlayerChat(message);
+                }
                 return true;
             }
 
             askAi(message);
             return false;
         });
+    }
+
+    private static void tryOpenLan(MinecraftClient client) {
+        if (lanOpened) return;
+        if (client.getServer() == null) return;
+        if (!AiCompanionConfig.joinedGame()) return;
+
+        boolean success = client.getServer().openToLan(GameMode.SURVIVAL, true, 0);
+        if (success) {
+            lanOpened = true;
+            addChatMessage(Text.literal("[系统] 局域网世界已开启，其他玩家可以搜索并加入！"));
+        }
     }
 
     private static boolean shouldHandleAiMention(String message) {
