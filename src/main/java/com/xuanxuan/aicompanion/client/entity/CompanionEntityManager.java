@@ -17,7 +17,6 @@ import java.util.concurrent.CompletableFuture;
 
 public final class CompanionEntityManager {
     public static final String COMPANION_NAME = "XuanXuan-ZhengGui";
-    private static final int COMPANION_ENTITY_ID = -99999;
 
     private static OtherClientPlayerEntity companion;
     private static UUID skinUuid = UUID.randomUUID();
@@ -130,11 +129,9 @@ public final class CompanionEntityManager {
             companion = new OtherClientPlayerEntity(client.world, profile);
             companion.setCustomName(Text.literal(COMPANION_NAME));
             companion.setCustomNameVisible(true);
-            companion.setId(COMPANION_ENTITY_ID);
-
             Vec3d spawnPos = companionPosition(client, 2.0D);
             companion.refreshPositionAndAngles(spawnPos.x, spawnPos.y, spawnPos.z, client.player.getYaw(), 0.0F);
-            client.world.addEntity(COMPANION_ENTITY_ID, companion);
+            client.world.addEntity(companion);
             companion.setHealth(20.0f);
         } catch (Exception exception) {
             AiCompanionClient.addChatMessage(Text.literal("[AI Companion] 生成实体失败：" + exception.getMessage()));
