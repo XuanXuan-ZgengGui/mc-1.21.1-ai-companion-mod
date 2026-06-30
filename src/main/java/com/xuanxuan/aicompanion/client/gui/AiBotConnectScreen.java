@@ -14,6 +14,7 @@ import net.minecraft.text.Text;
 public final class AiBotConnectScreen extends Screen {
     private final Screen parent;
     private TextFieldWidget ipInput;
+    private TextFieldWidget modelInput;
 
     public AiBotConnectScreen(Screen parent) {
         super(Text.literal("AI Bot 客户端"));
@@ -23,28 +24,39 @@ public final class AiBotConnectScreen extends Screen {
     @Override
     protected void init() {
         int centerX = width / 2;
-        int startY = height / 2 - 40;
+        int startY = height / 2 - 56;
 
         ipInput = new TextFieldWidget(textRenderer, centerX - 120, startY + 20, 240, 20, Text.literal("IP:端口"));
         ipInput.setText(AiCompanionConfig.targetServerIp());
         ipInput.setMaxLength(256);
         addDrawableChild(ipInput);
 
+        modelInput = new TextFieldWidget(textRenderer, centerX - 120, startY + 52, 240, 20, Text.literal("模型名"));
+        modelInput.setText(AiCompanionConfig.modelName());
+        modelInput.setMaxLength(128);
+        addDrawableChild(modelInput);
+
         addDrawableChild(ButtonWidget.builder(Text.literal("连接并启动 AI"), button -> connect())
-                .dimensions(centerX - 120, startY + 56, 240, 20).build());
+                .dimensions(centerX - 120, startY + 88, 240, 20).build());
         addDrawableChild(ButtonWidget.builder(Text.literal("返回"), button -> client.setScreen(parent))
-                .dimensions(centerX - 120, startY + 86, 240, 20).build());
+                .dimensions(centerX - 120, startY + 118, 240, 20).build());
     }
 
     private void connect() {
         String address = ipInput.getText().trim();
+        String model = modelInput.getText().trim();
         if (address.isBlank()) {
             AiCompanionClient.addChatMessage(Text.literal("[AI Bot] 请输入 IP:端口"));
+            return;
+        }
+        if (model.isBlank()) {
+            AiCompanionClient.addChatMessage(Text.literal("[AI Bot] 请输入模型名"));
             return;
         }
 
         AiCompanionConfig.setAiBotMode(true);
         AiCompanionConfig.setTargetServerIp(address);
+        AiCompanionConfig.setModelName(model);
         AiCompanionConfig.save();
 
         try {
@@ -60,9 +72,10 @@ public final class AiBotConnectScreen extends Screen {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         super.render(context, mouseX, mouseY, delta);
         int centerX = width / 2;
-        int startY = height / 2 - 40;
+        int startY = height / 2 - 56;
         context.drawCenteredTextWithShadow(textRenderer, title, centerX, startY - 16, 0xFFFFFF);
-        context.drawTextWithShadow(textRenderer, Text.literal("输入目标局域网 IP:端口"), centerX - 120, startY + 6, 0xAAAAAA);
+        context.drawTextWithShadow(textRenderer, Text.literal("目标局域网 IP:端口"), centerX - 120, startY + 6, 0xAAAAAA);
+        context.drawTextWithShadow(textRenderer, Text.literal("模型名 (如 qwen2.5:7b)"), centerX - 120, startY + 38, 0xAAAAAA);
     }
 
     @Override

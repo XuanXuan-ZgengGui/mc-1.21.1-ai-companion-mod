@@ -13,6 +13,8 @@ import net.minecraft.util.math.Vec3d;
 import java.util.List;
 
 public final class AiPerception {
+    public static final String BOT_NAME = "XuanXuan-ZhengGui";
+
     private AiPerception() {
     }
 
@@ -33,13 +35,23 @@ public final class AiPerception {
         sb.append("朝向: Yaw=").append(String.format("%.0f", player.getYaw())).append(", Pitch=").append(String.format("%.0f", player.getPitch())).append("\n");
         sb.append("在地面上: ").append(player.isOnGround()).append("\n");
 
-        java.util.List<Entity> nearby = world.getEntitiesByClass(Entity.class, player.getBoundingBox().expand(16.0), e -> e != player);
+        try {
+            BlockPos frontPos = player.getBlockPos().add(
+                    (int) -Math.sin(Math.toRadians(player.getYaw())),
+                    0,
+                    (int) Math.cos(Math.toRadians(player.getYaw()))
+            );
+            String frontBlock = world.getBlockState(frontPos).getBlock().toString();
+            sb.append("前方方块: ").append(frontBlock).append("\n");
+        } catch (Exception ignored) {
+        }
+
+        List<Entity> nearby = world.getEntitiesByClass(Entity.class, player.getBoundingBox().expand(16.0), e -> e != player);
         int hostileCount = 0;
         int playerCount = 0;
         int passiveCount = 0;
-        StringBuilder nearest = new StringBuilder();
-        double nearestDist = Double.MAX_VALUE;
         Entity nearestEntity = null;
+        double nearestDist = Double.MAX_VALUE;
 
         for (Entity e : nearby) {
             if (e == player) continue;
